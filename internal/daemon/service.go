@@ -20,7 +20,7 @@ import (
 // with different NM_HOMEs cannot collide in the global launchctl/systemctl/
 // schtasks namespace. See serviceInstanceSuffix for the full rationale.
 const (
-	launchdServiceLabelBase = "com.kunchenguid.no-mistakes.daemon"
+	launchdServiceLabelBase = "com.fedejinich.no-mistakes.daemon"
 	systemdServiceNameBase  = "no-mistakes-daemon"
 	windowsTaskNameBase     = "no-mistakes-daemon"
 )

@@ -19,6 +19,8 @@ Safest local verification sequence after non-trivial changes:
 - `develop` is the fork's default integration branch. Create fork-specific feature branches from `develop` and target their pull requests to `develop`.
 - Keep `main` exactly aligned with `kunchenguid/no-mistakes:main`. Update it only by fast-forwarding from that upstream branch; never merge fork-specific work into `main`.
 - Validate changes with the `no-mistakes` implementation built from `fedejinich/no-mistakes:develop`, not an upstream release or another fork. Confirm the binary source and active Git remotes before allowing the pipeline to push or open a pull request.
+- Local installations use the source checkout at `~/Projects/rootstock/no-mistakes-fork`. After a change reaches `develop`, update and reinstall it with `git pull --ff-only origin develop && make INSTALL_BIN="$HOME/.no-mistakes/bin/no-mistakes" install` from that checkout.
+- Never use `no-mistakes update`, an upstream install script, or `go install` for the local installation. Updates are manual and must come from this fork's `develop` branch.
 - Before branching, merging, or opening a pull request, verify the active remote and base branch instead of inferring them from the checkout name.
 
 **Fork Routing**
