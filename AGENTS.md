@@ -14,6 +14,13 @@ Safest local verification sequence after non-trivial changes:
 - `make e2e` when touching agent integrations, the e2e harness, or recorded fixtures
 - `go build -o ./bin/no-mistakes ./cmd/no-mistakes`
 
+**`fedejinich/no-mistakes` fork policy**
+
+- `develop` is the fork's default integration branch. Create fork-specific feature branches from `develop` and target their pull requests to `develop`.
+- Keep `main` exactly aligned with `kunchenguid/no-mistakes:main`. Update it only by fast-forwarding from that upstream branch; never merge fork-specific work into `main`.
+- Validate changes with the `no-mistakes` implementation built from `fedejinich/no-mistakes:develop`, not an upstream release or another fork. Confirm the binary source and active Git remotes before allowing the pipeline to push or open a pull request.
+- Before branching, merging, or opening a pull request, verify the active remote and base branch instead of inferring them from the checkout name.
+
 **Fork Routing**
 
 - `repos.upstream_url` is the parent repository used for PR base routing; `repos.fork_url` is an optional GitHub fork push target.
