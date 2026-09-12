@@ -366,6 +366,44 @@ func FindMainRepoRoot(path string) (string, error) {
 	return resolveMainRoot(strings.TrimSpace(string(topOut)))
 }
 
+// FindGitCommonDir returns the canonical Git common directory for the
+// repository containing path. The common directory is shared by linked
+// worktrees, while an absorbed submodule has its own directory under the
+// superproject's .git/modules tree. Callers that identify a registered
+// checkout should use this value rather than the worktree path itself so a
+// profile follows the repository across worktrees without inheriting through
+// directory ancestry.
+func FindGitCommonDir(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("resolve git repository path %q: %w", path, err)
+	}
+	workingPath := abs
+	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
+		workingPath = resolved
+	}
+
+	cmd := exec.Command("git", "rev-parse", "--git-common-dir")
+	cmd.Dir = workingPath
+	winproc.Harden(cmd)
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not a git repository: %s", abs)
+	}
+	commonDir := strings.TrimSpace(string(out))
+	if commonDir == "" {
+		return "", fmt.Errorf("git repository %q returned an empty common directory", abs)
+	}
+	if !filepath.IsAbs(commonDir) {
+		commonDir = filepath.Join(workingPath, commonDir)
+	}
+	commonDir = filepath.Clean(commonDir)
+	if resolved, err := filepath.EvalSymlinks(commonDir); err == nil {
+		commonDir = resolved
+	}
+	return filepath.Abs(commonDir)
+}
+
 // resolveMainRoot applies filepath.EvalSymlinks to path, falling back to
 // the unresolved path when symlink resolution fails.
 func resolveMainRoot(path string) (string, error) {
