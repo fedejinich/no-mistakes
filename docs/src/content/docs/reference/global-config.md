@@ -256,7 +256,7 @@ How each field maps:
 
 `rovodev` and `antigravity` have no mechanism no-mistakes can set - `acli rovodev serve` plus its REST session API take no model parameter, and the `agy` CLI parses flags strictly - so `agent_config` for them is a config error rather than a request that quietly does nothing. Reach for [`agent_args_override`](#agent_args_override) there if your build of the CLI accepts a flag. Reasoning effort is likewise unavailable for ACP targets: no-mistakes drives them through `acpx`, which exposes `--model` but no effort surface.
 
-`agent_config` is global-only. Like `agent_args_override`, it decides which model runs with your credentials, so an `agent_config` block in a repository's `.no-mistakes.yaml` is ignored. To select a different local profile per repository, use [`project_profiles`](#project_profiles) below.
+`agent_config` is global-only. Like `agent_args_override`, it decides which model runs with your credentials, so an `agent_config` block in a repository's `.no-mistakes.yaml` is ignored.
 
 **Precedence.** `agent_args_override` always wins. If a raw flag already pins a knob natively - for example, `-m`, `--model`, or a `-c`/`--config` assignment whose exact key is `model` or `model_reasoning_effort` for Codex, plus the other harnesses' `--effort`, `--reasoning-effort`, or `--thinking` forms - then `agent_config` does not emit its value for that knob. Text such as `model=` nested inside an unrelated option's value is not a pin. Any knob the raw flags leave alone still comes from `agent_config`, so adding `agent_config` to an existing configuration never changes the arguments that configuration already supplied:
 
@@ -270,57 +270,6 @@ agent_args_override:
     - -m
     - o3
 ```
-
-### project_profiles
-
-Optional operator-local agent selections keyed by a repository's canonical Git
-common directory. This map belongs in the global `NM_HOME/config.yaml`; it is
-never read from a versioned `.no-mistakes.yaml`, so repository input cannot
-select a credential-using model or harness.
-
-|         |                                                                                         |
-| ------- | --------------------------------------------------------------------------------------- |
-| Type    | `map[string]{agent, agent_config}`                                                      |
-| Default | Empty (the global agent and trusted repository selection are used)                      |
-
-```yaml
-project_profiles:
-  /Users/you/src/project/.git:
-    agent: codex
-    agent_config:
-      codex:
-        model: gpt-5.6-sol
-        effort: medium
-  /Users/you/src/other/.git:
-    agent: [claude, codex]
-    agent_config:
-      claude:
-        model: sonnet
-        effort: high
-```
-
-Keys must be absolute paths to Git common directories. no-mistakes resolves
-the key and the registered checkout with Git's `rev-parse --git-common-dir`
-and realpath resolution. Linked worktrees therefore share their repository's
-profile. A nested submodule has its own Git common directory and profile; a
-profile is never inherited from a parent directory or superproject. A missing
-directory may be configured in advance and is retained as a cleaned absolute
-path until the repository exists.
-
-The optional `agent` value accepts one harness or an ordered fallback list,
-using the same names as the global `agent` field. `agent_config` uses the same
-harness-neutral model and effort mapping described above. Fields in a local
-profile overlay the global `agent_config`; an explicit local `agent` selection
-also takes precedence over the trusted repository's `agent` selection. A
-profile entry may set either `model` or `effort`, inheriting the other value
-from the global entry for that harness.
-
-no-mistakes resolves this profile when creating a run, after applying the
-trusted repository configuration. It records the resolved agent, fallback
-list, profiles, and selected profile key with the run. Recovery of an active
-run reuses that recorded selection, so editing or removing a local profile
-affects only later runs. Legacy runs without a recorded selection keep the
-existing global/trusted-repository recovery behavior.
 
 ### review_agents
 
@@ -419,7 +368,7 @@ agent_args_override:
 
 Do not put a model flag under `opencode` here: these flags go to `opencode serve`, which exits with usage on an unknown option. Use `agent_config.opencode.model` instead.
 
-For Codex, `service_tier` and reasoning effort tune different things: `service_tier` selects the speed or priority lane, while reasoning depth is what [`agent_config`](#agent_config)'s `effort` sets (as `-c model_reasoning_effort`). no-mistakes reloads global config while setting up each new run; [`project_profiles`](#project_profiles) keeps a repository-specific selection in that operator-local config while active runs retain their recorded selection.
+For Codex, `service_tier` and reasoning effort tune different things: `service_tier` selects the speed or priority lane, while reasoning depth is what [`agent_config`](#agent_config)'s `effort` sets (as `-c model_reasoning_effort`). no-mistakes reloads global config while setting up each run, so edits made before `no-mistakes axi run` apply to that run. For repeatable profiles, use separately initialized `NM_HOME` directories; each has its own `config.yaml` and no-mistakes state.
 
 ### forge_profiles
 

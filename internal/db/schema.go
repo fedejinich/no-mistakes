@@ -292,9 +292,6 @@ var migrationStatements = []string{
 	// empty both mean the bare core pipeline, which is the only sequence a row
 	// written before this column existed can have had.
 	`ALTER TABLE runs ADD COLUMN gates_json TEXT`,
-	// Effective agent selection resolved when the run starts. Existing rows
-	// remain NULL and retain legacy recovery behavior.
-	`ALTER TABLE runs ADD COLUMN agent_selection_json TEXT`,
 	`ALTER TABLE step_results ADD COLUMN auto_fix_limit INTEGER`,
 	`ALTER TABLE step_results ADD COLUMN ci_fix_attempts INTEGER NOT NULL DEFAULT 0`,
 	// Non-nil exactly when a human answered ActionApprove on a step whose gate

@@ -145,11 +145,6 @@ If a pipeline invocation fails because that agent process cannot start or exits 
 Structured findings and schema/output validation problems do not trigger fallback.
 This per-repo `agent` value, including every fallback entry, is still read from the trusted default-branch `.no-mistakes.yaml` unless `allow_repo_commands` is enabled there.
 
-The versioned repository file cannot set `agent_config` or `project_profiles`.
-Those operator-local model and effort selections belong in the global
-`NM_HOME/config.yaml`; use [`project_profiles`](/no-mistakes/reference/global-config/#project_profiles)
-when one repository needs a different local agent profile.
-
 ### allow_repo_commands
 
 Opt in to honoring the code-executing selection fields (`commands.{prepare,test,lint,format}` and `agent`) from a contributor's pushed branch instead of the trusted default-branch copy.
