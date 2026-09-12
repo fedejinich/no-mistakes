@@ -244,12 +244,22 @@ func (m *RunManager) loadRecoveredConfig(ctx context.Context, run *db.Run, repo 
 	allowRepoCommands := trustedRepoCfg != nil && trustedRepoCfg.AllowRepoCommands
 	effectiveRepoCfg := config.EffectiveRepoConfig(repoCfg, trustedRepoCfg, allowRepoCommands)
 	cfg := config.Merge(globalCfg, effectiveRepoCfg)
-	// Gates are read back from the run, never re-resolved. Everything else here
-	// is deliberately re-read from the live default branch, but a gate decides
-	// which steps the run HAS: the default branch may have gained or lost one
-	// since this run parked, and rebuilding the sequence from the current list
-	// would leave recovery matching the run's recorded steps against a sequence
-	// it never executed - failing a healthy parked run as a crash.
+	selection, err := m.db.GetRunAgentSelection(run.ID)
+	if err != nil {
+		return nil, fmt.Errorf("read run agent selection: %w", err)
+	}
+	if strings.TrimSpace(selection) != "" {
+		if err := cfg.ApplyAgentSelection(selection); err != nil {
+			return nil, fmt.Errorf("restore run agent selection: %w", err)
+		}
+	}
+	// Gates and, when present, the resolved agent selection are read back from
+	// the run, never re-resolved. Everything else here is deliberately re-read
+	// from the live default branch, but a gate decides which steps the run HAS:
+	// the default branch may have gained or lost one since this run parked, and
+	// rebuilding the sequence from the current list would leave recovery
+	// matching the run's recorded steps against a sequence it never executed -
+	// failing a healthy parked run as a crash.
 	gates, err := m.pinnedRunGates(run.ID)
 	if err != nil {
 		return nil, err
@@ -1366,7 +1376,12 @@ func (m *RunManager) startRunWithIntentSourceLocked(ctx context.Context, repo *d
 		// This is not an error: it is the secure default in action.
 		slog.Info("repo commands/agent loaded from default branch, not pushed branch", "run_id", run.ID, "branch", branch, "default_branch", repo.DefaultBranch)
 	}
-	cfg := config.Merge(globalCfg, effectiveRepoCfg)
+	cfg, err := config.EffectiveForProject(globalCfg, effectiveRepoCfg, repo.WorkingPath)
+	if err != nil {
+		m.db.UpdateRunError(run.ID, err.Error())
+		trackStartFailure("resolve_project_profile")
+		return "", err
+	}
 	if err := m.paths.ValidateEvidenceRoot(cfg.Test.Evidence.LocalRoot); err != nil {
 		m.db.UpdateRunError(run.ID, err.Error())
 		trackStartFailure("evidence_root")
@@ -1395,6 +1410,19 @@ func (m *RunManager) startRunWithIntentSourceLocked(ctx context.Context, repo *d
 		m.db.UpdateRunError(run.ID, err.Error())
 		trackStartFailure("create_agent")
 		return "", err
+	}
+	selection, err := cfg.MarshalAgentSelection()
+	if err != nil {
+		_ = ag.Close()
+		m.db.UpdateRunError(run.ID, fmt.Sprintf("record agent selection: %s", err))
+		trackStartFailure("record_agent_selection")
+		return "", fmt.Errorf("record agent selection: %w", err)
+	}
+	if err := m.db.SetRunAgentSelection(run.ID, selection); err != nil {
+		_ = ag.Close()
+		m.db.UpdateRunError(run.ID, fmt.Sprintf("record agent selection: %s", err))
+		trackStartFailure("record_agent_selection")
+		return "", fmt.Errorf("record agent selection: %w", err)
 	}
 
 	// Configuration decides this run's gates exactly once, here, and the

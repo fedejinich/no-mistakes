@@ -35,14 +35,16 @@ type projectProfileRaw struct {
 // so a symlink cannot create a second identity for the same Git directory.
 func parseProjectProfiles(raw map[string]projectProfileRaw) (map[string]ProjectProfile, error) {
 	profiles := make(map[string]ProjectProfile, len(raw))
+	keysByCanonical := make(map[string]string, len(raw))
 	for _, key := range sortedProjectProfileKeys(raw) {
 		canonical, err := canonicalProjectProfileKey(key)
 		if err != nil {
 			return nil, fmt.Errorf("invalid project_profiles.%s: %w", key, err)
 		}
-		if _, exists := profiles[canonical]; exists {
-			return nil, fmt.Errorf("invalid project_profiles: keys %q and %q resolve to the same Git common directory %q", key, canonical, canonical)
+		if previous, exists := keysByCanonical[canonical]; exists {
+			return nil, fmt.Errorf("invalid project_profiles: keys %q and %q resolve to the same Git common directory %q", previous, key, canonical)
 		}
+		keysByCanonical[canonical] = key
 
 		agents := copyAgents(raw[key].Agent)
 		if err := validateProjectProfileAgents(agents, "agent"); err != nil {
@@ -128,7 +130,7 @@ func (g *GlobalConfig) ForProject(path string) (*GlobalConfig, error) {
 		return nil, fmt.Errorf("project profile resolution requires global config")
 	}
 	clone := cloneGlobalConfig(g)
-	profile, found, err := g.projectProfileFor(path)
+	profile, found, _, err := g.projectProfileFor(path)
 	if err != nil {
 		return nil, err
 	}
@@ -151,11 +153,14 @@ func EffectiveForProject(global *GlobalConfig, repo *RepoConfig, path string) (*
 	if global == nil {
 		return nil, fmt.Errorf("project profile resolution requires global config")
 	}
+	if repo == nil {
+		repo = &RepoConfig{}
+	}
 	cfg := Merge(global, repo)
 	if len(global.ProjectProfiles) == 0 {
 		return cfg, nil
 	}
-	profile, found, err := global.projectProfileFor(path)
+	profile, found, key, err := global.projectProfileFor(path)
 	if err != nil {
 		return nil, err
 	}
@@ -166,22 +171,23 @@ func EffectiveForProject(global *GlobalConfig, repo *RepoConfig, path string) (*
 		return nil, fmt.Errorf("invalid project profile for %q: %w", path, err)
 	}
 	applyProjectProfileToConfig(cfg, profile)
+	cfg.ProjectProfileKey = key
 	return cfg, nil
 }
 
-func (g *GlobalConfig) projectProfileFor(path string) (ProjectProfile, bool, error) {
+func (g *GlobalConfig) projectProfileFor(path string) (ProjectProfile, bool, string, error) {
 	if len(g.ProjectProfiles) == 0 {
-		return ProjectProfile{}, false, nil
+		return ProjectProfile{}, false, "", nil
 	}
 	commonDir, err := git.FindGitCommonDir(path)
 	if err != nil {
-		return ProjectProfile{}, false, fmt.Errorf("resolve project profile for %q: %w", path, err)
+		return ProjectProfile{}, false, "", fmt.Errorf("resolve project profile for %q: %w", path, err)
 	}
 	profile, found := g.ProjectProfiles[commonDir]
 	if !found {
-		return ProjectProfile{}, false, nil
+		return ProjectProfile{}, false, commonDir, nil
 	}
-	return cloneProjectProfile(profile), true, nil
+	return cloneProjectProfile(profile), true, commonDir, nil
 }
 
 func applyProjectProfileToGlobal(global *GlobalConfig, profile ProjectProfile) {

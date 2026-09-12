@@ -601,6 +601,10 @@ type Config struct {
 	AgentPathOverride     map[string]string
 	AgentArgsOverride     map[string][]string
 	AgentConfig           map[string]agentcfg.Profile
+	// ProjectProfileKey is the canonical Git common directory whose local
+	// profile selected this run. Empty means the effective selection came from
+	// global and trusted repository configuration.
+	ProjectProfileKey     string
 	ReviewAgents          map[string]ReviewAgent
 	CITimeout             time.Duration
 	StepQuietWarning      time.Duration
@@ -1036,6 +1040,21 @@ log_level: info
 #     effort: high
 #   opencode:
 #     model: openai/gpt-5
+
+# Optional operator-local profile per Git repository. Keys are canonical
+# absolute Git common directories (the path returned by
+# git rev-parse --git-common-dir after realpath resolution), so linked
+# worktrees share a profile and nested submodules have separate profiles.
+# Profiles are read only from this global config; they cannot be set in a
+# versioned .no-mistakes.yaml. A local profile overlays agent_config and its
+# explicit agent selection wins over the trusted repository's agent.
+# project_profiles:
+#   /Users/you/src/my-repo/.git:
+#     agent: codex
+#     agent_config:
+#       codex:
+#         model: gpt-5.6-sol
+#         effort: medium
 #
 # Extra native agent CLI flags (optional, global only)
 # Codex service_tier controls speed/priority; model_reasoning_effort controls reasoning depth.
