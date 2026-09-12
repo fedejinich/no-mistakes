@@ -139,11 +139,6 @@ type GlobalConfig struct {
 	// which model runs with the operator's credentials, so no pushed branch may
 	// set it.
 	AgentConfig map[string]agentcfg.Profile `yaml:"agent_config"`
-	// ProjectProfiles contains operator-local agent selections keyed by the
-	// canonical Git common directory of a repository. It is read only from the
-	// global config, never from .no-mistakes.yaml, so a pushed branch cannot
-	// select a process that runs with the operator's credentials.
-	ProjectProfiles map[string]ProjectProfile `yaml:"project_profiles"`
 	// ReviewAgents selects independent review-loop harnesses and profiles.
 	// Global-only: repository input must not select credential/model profiles.
 	ReviewAgents map[string]ReviewAgent `yaml:"review_agents"`
@@ -195,36 +190,35 @@ type GlobalConfig struct {
 
 // globalConfigRaw is the on-disk YAML representation with duration as string.
 type globalConfigRaw struct {
-	Agent                   agentList                    `yaml:"agent"`
-	ACPXPath                string                       `yaml:"acpx_path"`
-	ForgejoAXIPath          string                       `yaml:"forgejo_axi_path"`
-	ACPRegistryOverrides    map[string]string            `yaml:"acp_registry_overrides"`
-	AgentPathOverride       map[string]string            `yaml:"agent_path_override"`
-	AgentArgsOverride       map[string][]string          `yaml:"agent_args_override"`
-	AgentConfig             map[string]agentProfileRaw   `yaml:"agent_config"`
-	ProjectProfiles         map[string]projectProfileRaw `yaml:"project_profiles"`
-	ReviewAgents            map[string]ReviewAgent       `yaml:"review_agents"`
-	WorktreeRoots           map[string]string            `yaml:"worktree_roots"`
-	CITimeout               string                       `yaml:"ci_timeout"`
-	DaemonConnectTimeout    string                       `yaml:"daemon_connect_timeout"`
-	BranchSyncRemoteTimeout string                       `yaml:"branch_sync_remote_timeout"`
-	GateReconcileInterval   string                       `yaml:"gate_reconcile_interval"`
-	GateReconcileTimeout    string                       `yaml:"gate_reconcile_timeout"`
-	BabysitTimeout          string                       `yaml:"babysit_timeout"`
-	StepQuietWarning        string                       `yaml:"step_quiet_warning"`
-	AgentTimeout            string                       `yaml:"agent_timeout"`
-	ReviewAgentTimeout      string                       `yaml:"review_agent_timeout"`
-	TestAgentTimeout        string                       `yaml:"test_agent_timeout"`
-	LogLevel                string                       `yaml:"log_level"`
-	SessionReuse            *bool                        `yaml:"session_reuse"`
-	AutoFix                 AutoFixRaw                   `yaml:"auto_fix"`
-	CI                      CIRaw                        `yaml:"ci"`
-	Commit                  CommitRaw                    `yaml:"commit"`
-	Intent                  IntentRaw                    `yaml:"intent"`
-	Test                    TestRaw                      `yaml:"test"`
-	Eval                    EvalRaw                      `yaml:"eval"`
-	ForgeProfiles           ForgeProfiles                `yaml:"forge_profiles"`
-	Providers               ProvidersRaw                 `yaml:"providers"`
+	Agent                   agentList                  `yaml:"agent"`
+	ACPXPath                string                     `yaml:"acpx_path"`
+	ForgejoAXIPath          string                     `yaml:"forgejo_axi_path"`
+	ACPRegistryOverrides    map[string]string          `yaml:"acp_registry_overrides"`
+	AgentPathOverride       map[string]string          `yaml:"agent_path_override"`
+	AgentArgsOverride       map[string][]string        `yaml:"agent_args_override"`
+	AgentConfig             map[string]agentProfileRaw `yaml:"agent_config"`
+	ReviewAgents            map[string]ReviewAgent     `yaml:"review_agents"`
+	WorktreeRoots           map[string]string          `yaml:"worktree_roots"`
+	CITimeout               string                     `yaml:"ci_timeout"`
+	DaemonConnectTimeout    string                     `yaml:"daemon_connect_timeout"`
+	BranchSyncRemoteTimeout string                     `yaml:"branch_sync_remote_timeout"`
+	GateReconcileInterval   string                     `yaml:"gate_reconcile_interval"`
+	GateReconcileTimeout    string                     `yaml:"gate_reconcile_timeout"`
+	BabysitTimeout          string                     `yaml:"babysit_timeout"`
+	StepQuietWarning        string                     `yaml:"step_quiet_warning"`
+	AgentTimeout            string                     `yaml:"agent_timeout"`
+	ReviewAgentTimeout      string                     `yaml:"review_agent_timeout"`
+	TestAgentTimeout        string                     `yaml:"test_agent_timeout"`
+	LogLevel                string                     `yaml:"log_level"`
+	SessionReuse            *bool                      `yaml:"session_reuse"`
+	AutoFix                 AutoFixRaw                 `yaml:"auto_fix"`
+	CI                      CIRaw                      `yaml:"ci"`
+	Commit                  CommitRaw                  `yaml:"commit"`
+	Intent                  IntentRaw                  `yaml:"intent"`
+	Test                    TestRaw                    `yaml:"test"`
+	Eval                    EvalRaw                    `yaml:"eval"`
+	ForgeProfiles           ForgeProfiles              `yaml:"forge_profiles"`
+	Providers               ProvidersRaw               `yaml:"providers"`
 }
 
 // ForgeProfile selects one isolated provider CLI configuration directory.
@@ -2024,13 +2018,6 @@ func LoadGlobalFromBytes(data []byte) (*GlobalConfig, error) {
 			return nil, err
 		}
 		cfg.AgentConfig = profiles
-	}
-	if raw.ProjectProfiles != nil {
-		profiles, err := parseProjectProfiles(raw.ProjectProfiles)
-		if err != nil {
-			return nil, err
-		}
-		cfg.ProjectProfiles = profiles
 	}
 	if err := validateReviewAgents(raw.ReviewAgents); err != nil {
 		return nil, err
